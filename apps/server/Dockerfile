@@ -15,11 +15,18 @@ RUN pnpm --filter @nexus/core build
 RUN pnpm --filter @nexus/server build
 RUN pnpm --filter @nexus/server deploy --prod /deploy/server
 
+# Build do frontend (mesmo código do cliente Tauri, "tsc && vite build" —
+# não precisa de Rust/Android SDK, só produz HTML/JS/CSS estático) pra
+# servir direto do servidor, na pegada do Immich (abrir http://<servidor>:7023
+# no navegador já mostra o app, sem instalar nada).
+RUN pnpm --filter @nexus/desktop build
+
 # ---- runtime stage: só o necessário pra rodar, imagem final bem menor. ----
 FROM node:22-bookworm-slim AS runtime
 WORKDIR /app
 
 COPY --from=build /deploy/server ./
+COPY --from=build /repo/apps/desktop/dist ./web
 
 ENV NODE_ENV=production
 ENV NEXUS_DATA_DIR=/data

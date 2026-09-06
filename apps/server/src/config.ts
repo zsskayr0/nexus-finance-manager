@@ -14,6 +14,16 @@ export const DB_PATH = join(DATA_DIR, "nexus.db");
 export const ATTACHMENTS_DIR = join(DATA_DIR, "attachments");
 export const MIGRATIONS_DIR = join(__dirname, "..", "migrations");
 
+/**
+ * Build estático do frontend (`apps/desktop`, mesmo código do cliente
+ * Tauri) — servido direto pelo servidor, na pegada do Immich: abrir
+ * `http://<servidor>:7023` no navegador já mostra o app, sem precisar
+ * instalar nada. `null` quando a pasta não existe (ex.: rodando o servidor
+ * sozinho em dev, sem ter buildado o frontend) — nesse caso o servidor
+ * simplesmente não serve nada em `/`, só a API continua de pé.
+ */
+export const WEB_DIR = process.env.NEXUS_WEB_DIR ?? join(__dirname, "..", "web");
+
 export const PORT = Number(process.env.PORT ?? 7023);
 export const HOST = process.env.HOST ?? "0.0.0.0";
 

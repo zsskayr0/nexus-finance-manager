@@ -48,6 +48,10 @@ nexus_backup_*.csv
 # isso vive no volume /data, nunca na imagem
 apps/server/data/
 
+# Cópia local do build do frontend, só pra testar apps/server servindo a
+# interface web sem Docker — no Dockerfile isso é copiado direto no build
+apps/server/web/
+
 # Chaves de assinatura Android — nunca versionadas (o keystore de release
 # vive fora do repo; ver apps/desktop/src-tauri/gen/android/keystore.properties,
 # que já está dentro de gen/ e por isso ignorado, mas essa regra fica de

@@ -1,8 +1,14 @@
 # @nexus/server
 
-Servidor do Nexus — dono único dos dados, expõe uma API REST na porta `7023` pros clientes
-(Windows, Android) consumirem pela rede. Ver [docs/server-client-architecture-plan.md](../../docs/server-client-architecture-plan.md)
-pra arquitetura completa.
+Servidor do Nexus — dono único dos dados. Duas formas de acesso, na pegada do Immich:
+
+1. **Interface web** — o próprio servidor serve o app inteiro em `http://<servidor>:7023`. Abra
+   num navegador (PC ou celular, mesma rede) e já funciona, sem instalar nada.
+2. **API REST** (`/api/v1/...`) — consumida pelos clientes nativos (Windows/Android, ver release
+   de cliente) quando alguém prefere um app instalado em vez do navegador.
+
+Ver [docs/server-client-architecture-plan.md](../../docs/server-client-architecture-plan.md) pra
+arquitetura completa.
 
 - **Stack**: Node.js + Fastify + TypeScript, reaproveitando `@nexus/core` (schemas Zod, regras de
   negócio) direto do monorepo.
@@ -38,7 +44,8 @@ nomeado (`nexus-data`) persistindo `/data` (o `nexus.db` + anexos) entre reiníc
 | `PORT`             | `7023`                      | Porta HTTP                                               |
 | `HOST`             | `0.0.0.0`                   | Interface de bind                                        |
 | `NEXUS_DATA_DIR`   | `./data` (`/data` no Docker)| Onde ficam `nexus.db` e os anexos                        |
-| `NEXUS_API_KEY`    | *(nenhuma)*                 | Header `x-api-key` exigido em toda rota (exceto `/health`) se definida |
+| `NEXUS_WEB_DIR`    | `./web` (`/app/web` no Docker)| Build estático do frontend a servir em `/` — se a pasta não existir, o servidor sobe só como API, sem interface web |
+| `NEXUS_API_KEY`    | *(nenhuma)*                 | Header `x-api-key` exigido nas rotas `/api/v1/...` (não em `/health` nem na interface web) se definida |
 
 ## API
 
@@ -53,5 +60,8 @@ que existiam em `apps/desktop/src/lib/db.ts`.
   não foi migrada pra cá — só a configuração (`backup-settings`, `backup-log`) já existe.
 - Validação de schema nas rotas (hoje é só TypeScript em tempo de build); dá pra reforçar com os
   schemas Zod que já existem em `@nexus/core`.
-- Script de migração dos dados reais do SQLite local do Desktop pra este servidor (etapa 4 do
-  plano de arquitetura).
+- **Recursos que dependem do Tauri não funcionam pela interface web** — o build servido em `/` é
+  o mesmo código do cliente Desktop, mas partes dele (escolher pasta de backup, importar CSV via
+  diálogo nativo de arquivo) usam APIs só disponíveis dentro do Tauri. Painel, Transações,
+  Recorrências, Fluxo de Trabalho, Contas e Categorias funcionam normalmente no navegador; só a
+  tela de Backup & CSV tem esse limite conhecido por enquanto.

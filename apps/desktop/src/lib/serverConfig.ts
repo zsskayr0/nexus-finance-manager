@@ -9,7 +9,17 @@
 const URL_KEY = "nexus:server-url";
 const API_KEY_KEY = "nexus:server-api-key";
 
-export const DEFAULT_SERVER_URL = "http://localhost:7023";
+/**
+ * Dentro do Tauri (Windows/Android empacotados), o cliente é um processo à
+ * parte do servidor — sempre precisa de um endereço configurado. Fora do
+ * Tauri (a mesma build servida direto pelo servidor, aberta no navegador —
+ * ver apps/server/src/web.ts), o app já está rodando na própria origem do
+ * servidor, então o padrão é "aqui mesmo" (`window.location.origin`), sem
+ * precisar configurar nada — mesma pegada do Immich.
+ */
+const isTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
+
+export const DEFAULT_SERVER_URL = isTauri ? "http://localhost:7023" : typeof window !== "undefined" ? window.location.origin : "http://localhost:7023";
 
 export function getServerUrl(): string {
   return localStorage.getItem(URL_KEY) || DEFAULT_SERVER_URL;

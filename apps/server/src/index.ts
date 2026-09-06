@@ -12,6 +12,7 @@ import { payeeRoutes } from "./routes/payees.js";
 import { pendingItemRoutes } from "./routes/pendingItems.js";
 import { recurringRoutes } from "./routes/recurring.js";
 import { transactionRoutes } from "./routes/transactions.js";
+import { registerWeb } from "./web.js";
 
 // Importar ./db.js aqui (via as rotas) já aplica as migrations e garante o
 // arquivo SQLite — ver db.ts, que roda isso no import do módulo.
@@ -34,6 +35,7 @@ await app.register(exclusionRoutes);
 await app.register(attachmentRoutes);
 await app.register(backupRoutes);
 await app.register(adminRoutes);
+await registerWeb(app);
 
 try {
   await app.listen({ port: PORT, host: HOST });
