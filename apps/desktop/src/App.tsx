@@ -18,9 +18,12 @@ import { defaultPeriod, type Period } from "./lib/period";
 import type { PanelTarget } from "./lib/panelTarget";
 import type { RecurringPanelTarget } from "./lib/recurringPanelTarget";
 import { RecurringModal } from "./components/RecurringModal";
+import { AppLogo } from "./components/Logo";
+import { IconMenu } from "./components/icons";
 
 export default function App() {
   const [page, setPage] = useState<Page>("dashboard");
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [ready, setReady] = useState(false);
   // Se o boot falhar (ex.: erro de migration no banco), melhor mostrar o
   // motivo do que ficar preso em "Carregando…" pra sempre sem nenhuma pista.
@@ -68,11 +71,24 @@ export default function App() {
   const dockedRecurringTarget = recurringPanelTarget?.mode === "edit" ? recurringPanelTarget : undefined;
 
   return (
-    <div className="flex h-screen overflow-hidden">
-      <Sidebar current={page} onNavigate={setPage} />
+    <div className="flex h-screen flex-col overflow-hidden md:flex-row">
+      <Sidebar current={page} onNavigate={setPage} mobileOpen={mobileNavOpen} onCloseMobile={() => setMobileNavOpen(false)} />
+
+      {/* Barra só-mobile — a sidebar vira gaveta fora do fluxo abaixo do
+          breakpoint md, então sem isso não sobraria nenhum jeito de abrir o
+          menu num toque. */}
+      <div className="flex shrink-0 items-center justify-between border-b border-[var(--border)] bg-[var(--bg)] px-4 py-3 md:hidden">
+        <AppLogo size={17} wordmarkSize={15} />
+        <button
+          onClick={() => setMobileNavOpen(true)}
+          className="card flex h-8 w-8 items-center justify-center rounded-[9px] text-[var(--text-muted)]"
+        >
+          <IconMenu width={16} height={16} />
+        </button>
+      </div>
 
       <main className="flex flex-1 overflow-hidden">
-        <div className="min-w-0 flex-1 overflow-y-auto p-7">
+        <div className="min-w-0 flex-1 overflow-y-auto p-4 md:p-7">
           {page === "settings" ? (
             // Sempre acessível, mesmo com bootError — é a válvula de escape
             // pra corrigir o endereço/chave do servidor sem precisar editar
@@ -131,7 +147,7 @@ export default function App() {
         </div>
 
         {ready && page === "transactions" && panelPinned && panelTarget && (
-          <div className="h-full w-[420px] shrink-0 overflow-hidden">
+          <div className="fixed inset-0 z-40 overflow-hidden md:static md:z-auto md:h-full md:w-[420px] md:shrink-0">
             <TransactionModal
               docked
               categories={data.categories}
@@ -145,7 +161,7 @@ export default function App() {
         )}
 
         {ready && page === "recurring" && recurringPanelPinned && recurringPanelTarget && (
-          <div className="h-full w-[420px] shrink-0 overflow-hidden">
+          <div className="fixed inset-0 z-40 overflow-hidden md:static md:z-auto md:h-full md:w-[420px] md:shrink-0">
             <RecurringModal
               docked
               categories={data.categories}

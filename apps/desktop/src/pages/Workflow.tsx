@@ -5,6 +5,7 @@ import { deletePendingItem, insertTransaction, setTransactionDate } from "../lib
 import { pendingRecurrencesForPeriod, settleOccurrenceRescheduled } from "../lib/recurring";
 import { type DragPayload } from "../lib/dnd";
 import { computeVisibleRange, stepAnchor, type WorkflowView } from "../lib/workflowDates";
+import { useIsMobile } from "../lib/useIsMobile";
 import { PendingList } from "../components/PendingList";
 import { PendingItemModal } from "../components/PendingItemModal";
 import { MonthGrid } from "../components/workflow/MonthGrid";
@@ -32,6 +33,10 @@ export function WorkflowPage({ data }: { data: NexusData }) {
   const [dragOverDate, setDragOverDate] = useState<string | null>(null);
   const [showNewPending, setShowNewPending] = useState(false);
   const { transactions, categoriesById, recurringTransactions, pendingItems, recurringExclusions, categories, refresh } = data;
+  // Abaixo de 1024px empilha as pendências acima do calendário em vez de ao
+  // lado — o mesmo motivo do Categorias: são colunas largas de mais pra
+  // dividir um viewport de celular/tablet retrato.
+  const isMobile = useIsMobile(1024);
 
   // Altura disponível medida ao vivo (viewport menos tudo que vem antes) —
   // mesmo motivo do card de Pendências do Painel: sem uma altura explícita,
@@ -94,7 +99,7 @@ export function WorkflowPage({ data }: { data: NexusData }) {
 
   return (
     <div>
-      <div className="mb-4 flex items-center justify-between gap-4">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
         <h2 className="page-title">Fluxo de Trabalho</h2>
         <div className="card flex rounded-[10px] p-0.5">
           {VIEW_OPTIONS.map(({ value, label, icon: Icon }) => (
@@ -138,9 +143,9 @@ export function WorkflowPage({ data }: { data: NexusData }) {
         <div className="w-[130px]" />
       </div>
 
-      <div ref={bodyRef} className="flex gap-3.5" style={{ height: bodyHeight }}>
-        <div className="flex w-[300px] shrink-0 flex-col gap-3.5 overflow-hidden">
-          <div className="card flex min-h-0 flex-1 flex-col rounded-2xl p-4">
+      <div ref={bodyRef} className="flex flex-col gap-3.5 lg:flex-row" style={isMobile ? undefined : { height: bodyHeight }}>
+        <div className="flex w-full shrink-0 flex-col gap-3.5 overflow-hidden lg:w-[300px]">
+          <div className="card flex flex-col rounded-2xl p-4 lg:min-h-0 lg:flex-1">
             <div className="mb-2 flex shrink-0 items-center justify-between gap-2">
               <h4 className="text-[0.82rem] font-bold">Pendências</h4>
               <button
@@ -151,20 +156,20 @@ export function WorkflowPage({ data }: { data: NexusData }) {
                 <IconPlus width={12} height={12} strokeWidth={2.4} />
               </button>
             </div>
-            <div className="min-h-0 flex-1 overflow-y-auto">
+            <div className="max-h-[240px] overflow-y-auto lg:min-h-0 lg:max-h-none lg:flex-1">
               <PendingList recurringItems={[]} reminderItems={pendingItems} categoriesById={categoriesById} onSettled={refresh} draggable />
             </div>
           </div>
 
-          <div className="card flex min-h-0 flex-1 flex-col rounded-2xl p-4">
+          <div className="card flex flex-col rounded-2xl p-4 lg:min-h-0 lg:flex-1">
             <h4 className="mb-2 shrink-0 text-[0.82rem] font-bold">Recorrentes do período</h4>
-            <div className="min-h-0 flex-1 overflow-y-auto">
+            <div className="max-h-[240px] overflow-y-auto lg:min-h-0 lg:max-h-none lg:flex-1">
               <PendingList recurringItems={recurringForRange} reminderItems={[]} categoriesById={categoriesById} onSettled={refresh} draggable />
             </div>
           </div>
         </div>
 
-        <div className="min-w-0 flex-1 overflow-hidden rounded-2xl">
+        <div className="min-w-0 overflow-hidden rounded-2xl lg:flex-1" style={isMobile ? { height: 520 } : undefined}>
           {view === "month" ? (
             <MonthGrid
               year={anchor.getFullYear()}

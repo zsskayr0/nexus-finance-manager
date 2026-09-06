@@ -10,6 +10,7 @@ import { PeriodPicker } from "../components/PeriodPicker";
 import { DonutChart } from "../components/charts/DonutChart";
 import { RadarChart } from "../components/charts/RadarChart";
 import { readableTextColor } from "../components/BankBadge";
+import { useIsMobile } from "../lib/useIsMobile";
 import { CategoryIcon, IconArrowDown, IconArrowUp, IconDownload, IconGrid, IconPlus, IconTag } from "../components/icons";
 
 const TYPE_LABEL: Record<Category["type"], string> = { income: "Receita", expense: "Despesa", both: "Ambas" };
@@ -55,6 +56,11 @@ function buildInsight(stats: CategoryStat[]): string | null {
 export function CategoriesPage({ data, period, onPeriodChange }: { data: NexusData; period: Period; onPeriodChange: (p: Period) => void }) {
   const [showNew, setShowNew] = useState(false);
   const [editing, setEditing] = useState<Category | null>(null);
+  // Breakpoint próprio (1024, não os 768 padrão) — essa página empilha
+  // colunas bem largas (300-600px cada), então só "descoladas" de verdade
+  // num viewport bem largo; abaixo disso é melhor empilhar cedo do que
+  // espremer.
+  const isMobile = useIsMobile(1024);
 
   const { categories, transactions, recurringTransactions, categoriesById, refresh } = data;
   const range = periodRange(period);
@@ -91,7 +97,7 @@ export function CategoriesPage({ data, period, onPeriodChange }: { data: NexusDa
 
   return (
     <div>
-      <div className="mb-3.5 flex items-center justify-between gap-4">
+      <div className="mb-3.5 flex flex-wrap items-center justify-between gap-4">
         <h2 className="page-title">Categorias</h2>
         <div className="flex items-center gap-2.5">
           <PeriodPicker value={period} onChange={onPeriodChange} />
@@ -108,8 +114,8 @@ export function CategoriesPage({ data, period, onPeriodChange }: { data: NexusDa
       {/* "Todas as categorias" fica na extrema esquerda, largura fixa — o
           resto dos widgets (análise) disputa o espaço que sobra à direita,
           em vez de tudo empilhado em largura total. */}
-      <div className="flex items-start gap-3.5">
-        <div className="shrink-0" style={{ width: CATEGORIES_LIST_WIDTH }}>
+      <div className="flex flex-col items-stretch gap-3.5 lg:flex-row lg:items-start">
+        <div className="w-full shrink-0 lg:w-auto" style={isMobile ? undefined : { width: CATEGORIES_LIST_WIDTH }}>
           <div className="mb-3 flex items-center justify-between gap-2">
             <h3 className="text-[0.9rem] font-bold">Todas as categorias</h3>
             <span className="text-[0.72rem] text-[var(--text-faint)]">{categories.length} cadastradas</span>
@@ -167,10 +173,10 @@ export function CategoriesPage({ data, period, onPeriodChange }: { data: NexusDa
               (padrão do flex) faz a coluna da direita acompanhar a altura
               da esquerda, então o radar cresce pra preencher em vez de
               sobrar vazio embaixo. */}
-          <div className="flex items-stretch gap-3.5">
+          <div className="flex flex-col items-stretch gap-3.5 lg:flex-row">
             <div className="flex min-w-0 flex-1 flex-col gap-3.5">
               {/* Key specs: top 3 por participação */}
-              <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${top3.length}, minmax(0, 1fr))` }}>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 {top3.map((s, i) => (
                   <div key={s.categoryId} className="card rounded-2xl p-4">
                     <div className="mb-2.5 flex items-center justify-between gap-2">
@@ -191,7 +197,7 @@ export function CategoriesPage({ data, period, onPeriodChange }: { data: NexusDa
               </div>
 
               {/* Raw specs: estatísticas cruas por categoria */}
-              <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${top3.length}, minmax(0, 1fr))` }}>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 {top3.map((s) => (
                   <div key={s.categoryId} className="card flex flex-col gap-2 rounded-2xl p-4">
                     <RawSpecRow label="Total gasto" value={formatCentsToBRL(s.totalCents)} />
@@ -232,16 +238,18 @@ export function CategoriesPage({ data, period, onPeriodChange }: { data: NexusDa
               {/* Category breakdown */}
               <div className="card rounded-2xl p-5">
                 <h4 className="mb-3 text-[0.82rem] font-bold">Comparativo por métrica</h4>
-                <div className="flex flex-col gap-3">
-                  <BreakdownBarRow label="Total gasto" stats={top3} value={(s) => s.totalCents} format={(v) => formatCentsToBRL(v)} />
-                  <BreakdownBarRow label="Nº lançamentos" stats={top3} value={(s) => s.count} format={(v) => String(v)} />
-                  <BreakdownBarRow label="Ticket médio" stats={top3} value={(s) => s.avgTicketCents} format={(v) => formatCentsToBRL(v)} />
-                  <BreakdownBarRow label="Recorrências ativas" stats={top3} value={(s) => s.activeRecurringCount} format={(v) => String(v)} />
-                  <div className="grid gap-2" style={{ gridTemplateColumns: `100px repeat(${top3.length}, minmax(0, 1fr))` }}>
-                    <span className="text-[0.7rem] font-semibold text-[var(--text-muted)]">Variação</span>
-                    {top3.map((s) => (
-                      <ChangeBadge key={s.categoryId} changePct={s.changePct} />
-                    ))}
+                <div className="overflow-x-auto">
+                  <div className="flex min-w-[420px] flex-col gap-3">
+                    <BreakdownBarRow label="Total gasto" stats={top3} value={(s) => s.totalCents} format={(v) => formatCentsToBRL(v)} />
+                    <BreakdownBarRow label="Nº lançamentos" stats={top3} value={(s) => s.count} format={(v) => String(v)} />
+                    <BreakdownBarRow label="Ticket médio" stats={top3} value={(s) => s.avgTicketCents} format={(v) => formatCentsToBRL(v)} />
+                    <BreakdownBarRow label="Recorrências ativas" stats={top3} value={(s) => s.activeRecurringCount} format={(v) => String(v)} />
+                    <div className="grid gap-2" style={{ gridTemplateColumns: `100px repeat(${top3.length}, minmax(0, 1fr))` }}>
+                      <span className="text-[0.7rem] font-semibold text-[var(--text-muted)]">Variação</span>
+                      {top3.map((s) => (
+                        <ChangeBadge key={s.categoryId} changePct={s.changePct} />
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -251,10 +259,10 @@ export function CategoriesPage({ data, period, onPeriodChange }: { data: NexusDa
                 visual/radar (600px, mais largo — o radar precisa de mais
                 espaço horizontal) — larguras diferentes, então cada card
                 tem a própria em vez de uma largura só pra coluna inteira. */}
-            <div className="flex shrink-0 flex-col gap-3.5">
+            <div className="flex w-full shrink-0 flex-col gap-3.5 lg:w-auto">
               <div
-                className="card rounded-2xl p-5"
-                style={{ width: DESTAQUE_CARD_WIDTH, background: "radial-gradient(circle at 15% 10%, rgba(255,60,75,0.1), transparent 60%), var(--panel)" }}
+                className="card w-full rounded-2xl p-5 lg:w-auto"
+                style={{ width: isMobile ? undefined : DESTAQUE_CARD_WIDTH, background: "radial-gradient(circle at 15% 10%, rgba(255,60,75,0.1), transparent 60%), var(--panel)" }}
               >
                 <div className="mb-3 flex items-center justify-between gap-2">
                   <span className="text-[0.64rem] font-semibold uppercase tracking-[0.06em] text-[var(--text-faint)]">{periodNoun(period)}</span>
@@ -275,7 +283,7 @@ export function CategoriesPage({ data, period, onPeriodChange }: { data: NexusDa
                 </div>
               </div>
 
-              <div className="card flex flex-1 flex-col items-center justify-center rounded-2xl p-5" style={{ width: RADAR_CARD_WIDTH }}>
+              <div className="card flex w-full flex-1 flex-col items-center justify-center rounded-2xl p-5 lg:w-auto" style={isMobile ? undefined : { width: RADAR_CARD_WIDTH }}>
                 <h4 className="mb-1 self-start text-[0.82rem] font-bold">Comparativo visual</h4>
                 <RadarChart
                   axes={RADAR_AXES}

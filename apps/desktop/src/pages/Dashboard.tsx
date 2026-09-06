@@ -13,6 +13,7 @@ import { getGreeting } from "../lib/greeting";
 import { CHART_PALETTES, loadChartColorMode, saveChartColorMode, type ChartColorMode } from "../lib/chartColors";
 import { pendingRecurrencesForPeriod } from "../lib/recurring";
 import { setTransactionReconciled } from "../lib/db";
+import { useIsMobile } from "../lib/useIsMobile";
 import type { NexusData } from "../lib/hooks";
 import { KpiCard } from "../components/KpiCard";
 import { PeriodPicker } from "../components/PeriodPicker";
@@ -65,6 +66,7 @@ export function Dashboard({
   const [colorMode, setColorMode] = useState<ChartColorMode>("mono");
   const [includeForecast, setIncludeForecast] = useState(false);
   const [showNewPending, setShowNewPending] = useState(false);
+  const isMobile = useIsMobile();
   const greeting = useMemo(() => getGreeting("Diogo"), []);
   const { transactions, categories, accounts, categoriesById, payeesById, recurringTransactions, pendingItems, recurringExclusions, loading, refresh } = data;
 
@@ -120,7 +122,7 @@ export function Dashboard({
 
   return (
     <div>
-      <div className="mb-6 flex items-start justify-between gap-4">
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div>
           <div className="mb-1.5 text-[0.68rem] font-semibold uppercase tracking-[0.1em] text-[var(--text-faint)]">Painel Financeiro</div>
           <h2 className="page-title flex items-center gap-2.5">
@@ -133,7 +135,7 @@ export function Dashboard({
           </h2>
           <p className="mt-1 text-[0.82rem] text-[var(--text-faint)]">{greeting.subtext}</p>
         </div>
-        <div className="flex shrink-0 items-center gap-2.5 pt-1">
+        <div className="flex shrink-0 flex-wrap items-center gap-2.5 pt-1">
           <PeriodPicker value={period} onChange={onPeriodChange} />
           <button
             onClick={() => setShowNew(true)}
@@ -158,7 +160,7 @@ export function Dashboard({
         </div>
       ) : (
         <>
-          <div className="mb-5 grid grid-cols-4 gap-3.5">
+          <div className="mb-5 grid grid-cols-2 gap-3.5 md:grid-cols-4">
             <KpiCard label="Saldo total" value={formatCentsToBRL(kpis.balanceTotalCents)} icon={<IconWallet width={13} height={13} />} />
             <KpiCard
               label={`Receitas ${noun}`}
@@ -178,7 +180,7 @@ export function Dashboard({
             />
           </div>
 
-          <div className="mb-3 flex items-center justify-between">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <h3 className="text-[0.98rem] font-bold">Gráficos — {periodAdjective}</h3>
             <div className="flex items-center gap-2">
               <span className="text-[0.68rem] font-semibold uppercase tracking-[0.06em] text-[var(--text-faint)]">Cor</span>
@@ -200,8 +202,8 @@ export function Dashboard({
               dentro em vez de esticar a linha quando há muitos pendentes. A
               `key` do gráfico força remontar (replay da animação de
               revelação) quando os dados do período mudam. */}
-          <div className="mb-3.5 flex items-start gap-3.5">
-            <div ref={heroChartRef} className="min-w-0" style={{ flex: `1 1 ${HERO_ROW_MIN_WIDTH}px` }}>
+          <div className="mb-3.5 flex flex-col items-stretch gap-3.5 md:flex-row md:items-start">
+            <div ref={heroChartRef} className="min-w-0 w-full" style={isMobile ? undefined : { flex: `1 1 ${HERO_ROW_MIN_WIDTH}px` }}>
               <ChartCard
                 title="Receitas x despesas"
                 legend={[
@@ -227,7 +229,7 @@ export function Dashboard({
                 />
               </ChartCard>
             </div>
-            <div className="shrink-0 overflow-hidden" style={{ width: PENDING_COLUMN_WIDTH, height: heroHeight }}>
+            <div className="w-full shrink-0 overflow-hidden md:w-auto" style={isMobile ? { height: 380 } : { width: PENDING_COLUMN_WIDTH, height: heroHeight }}>
               <ChartCard
                 title={`Pendências — ${periodAdjective}`}
                 tall

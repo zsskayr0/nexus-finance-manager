@@ -13,6 +13,7 @@ import {
   IconRepeat,
   IconSettings,
   IconTag,
+  IconX,
 } from "./icons";
 
 export type Page = "dashboard" | "transactions" | "recurring" | "workflow" | "accounts" | "categories" | "backup" | "settings" | "help";
@@ -35,18 +36,52 @@ const SYSTEM_ITEMS: Array<{ page: Page; label: string; icon: typeof IconGrid }> 
   { page: "settings", label: "Configurações", icon: IconSettings },
 ];
 
-export function Sidebar({ current, onNavigate }: { current: Page; onNavigate: (p: Page) => void }) {
+/**
+ * No desktop (`md:` e acima) é a coluna fixa de sempre. Abaixo disso vira
+ * uma gaveta (drawer) fora do fluxo — `fixed`, deslizando de baixo do
+ * conteúdo — controlada por `mobileOpen`/`onCloseMobile` (estado mora em
+ * App.tsx, que também abre um botão de hambúrguer numa barra só-mobile).
+ */
+export function Sidebar({
+  current,
+  onNavigate,
+  mobileOpen = false,
+  onCloseMobile,
+}: {
+  current: Page;
+  onNavigate: (p: Page) => void;
+  mobileOpen?: boolean;
+  onCloseMobile?: () => void;
+}) {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
 
+  function handleNavigate(page: Page) {
+    onNavigate(page);
+    onCloseMobile?.();
+  }
+
   return (
-    <aside className="flex w-56 shrink-0 flex-col gap-1 border-r border-[var(--border)] bg-[var(--bg)] p-3.5">
-      <div className="mb-6 px-2 pt-1">
-        <AppLogo />
-      </div>
+    <>
+      {mobileOpen && <div className="fixed inset-0 z-40 bg-black/60 md:hidden" onClick={onCloseMobile} />}
+      <aside
+        className={
+          "fixed inset-y-0 left-0 z-50 flex w-64 shrink-0 flex-col gap-1 border-r border-[var(--border)] bg-[var(--bg)] p-3.5 transition-transform duration-200 md:static md:z-auto md:w-56 md:translate-x-0 " +
+          (mobileOpen ? "translate-x-0" : "-translate-x-full")
+        }
+      >
+        <div className="mb-6 flex items-center justify-between px-2 pt-1">
+          <AppLogo />
+          <button
+            onClick={onCloseMobile}
+            className="card flex h-7 w-7 items-center justify-center rounded-[9px] text-[var(--text-muted)] md:hidden"
+          >
+            <IconX width={14} height={14} />
+          </button>
+        </div>
 
       <nav className="flex flex-col gap-0.5">
         {NAV_ITEMS.map(({ page, label, icon: Icon }) => (
-          <NavLink key={page} active={current === page} onClick={() => onNavigate(page)}>
+          <NavLink key={page} active={current === page} onClick={() => handleNavigate(page)}>
             <Icon width={16} height={16} className="shrink-0" />
             {label}
           </NavLink>
@@ -59,7 +94,7 @@ export function Sidebar({ current, onNavigate }: { current: Page; onNavigate: (p
           Sistema
         </div>
         {SYSTEM_ITEMS.map(({ page, label, icon: Icon }) => (
-          <NavLink key={page} active={current === page} onClick={() => onNavigate(page)}>
+          <NavLink key={page} active={current === page} onClick={() => handleNavigate(page)}>
             <Icon width={16} height={16} className="shrink-0" />
             {label}
           </NavLink>
@@ -110,7 +145,8 @@ export function Sidebar({ current, onNavigate }: { current: Page; onNavigate: (p
           )}
         </div>
       </div>
-    </aside>
+      </aside>
+    </>
   );
 }
 

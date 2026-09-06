@@ -12,6 +12,7 @@ import {
 } from "../lib/recurring";
 import { deleteRecurringKeepingHistory, duplicateRecurringTransaction } from "../lib/db";
 import { useMultiSelect } from "../lib/useMultiSelect";
+import { useIsMobile } from "../lib/useIsMobile";
 import { getPeriodBuckets } from "../lib/aggregate";
 import { RecurringModal } from "../components/RecurringModal";
 import { PartialSettleModal } from "../components/PartialSettleModal";
@@ -76,6 +77,7 @@ export function RecurringPage({
 
   const range = periodRange(period);
   const isMonth = period.kind === "month";
+  const isMobile = useIsMobile();
 
   const allRows = useMemo(
     () => recurringOccurrencesForPeriod(recurringTransactions, transactions, range, recurringExclusions),
@@ -179,9 +181,9 @@ export function RecurringPage({
 
   return (
     <div>
-      <div className="mb-3.5 flex items-center justify-between gap-4">
+      <div className="mb-3.5 flex flex-wrap items-center justify-between gap-4">
         <h2 className="page-title">Recorrências</h2>
-        <div className="flex items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2.5">
           <PeriodPicker value={period} onChange={onPeriodChange} />
           <button
             onClick={() => onPanelTargetChange({ mode: "new" })}
@@ -209,7 +211,7 @@ export function RecurringPage({
       ) : (
         <>
           {selected.size > 0 && (
-            <div className="card mb-3 flex items-center justify-between rounded-[11px] px-4 py-2.5">
+            <div className="card mb-3 flex flex-wrap items-center justify-between gap-2 rounded-[11px] px-4 py-2.5">
               <span className="text-[0.8rem] font-semibold text-[var(--text-muted)]">
                 {selected.size} selecionado{selected.size > 1 ? "s" : ""}
               </span>
@@ -263,15 +265,17 @@ export function RecurringPage({
           </div>
 
           {rows.length > 0 && (
-            <div className="mb-3.5 flex gap-3.5">
+            <div className="mb-3.5 flex flex-col gap-3.5 md:flex-row">
               <div
-                className="card flex shrink-0 flex-col overflow-hidden rounded-2xl p-5 pb-4"
+                className="card flex w-full shrink-0 flex-col overflow-hidden rounded-2xl p-5 pb-4 md:w-auto"
                 style={{
                   // Mês tem ~30 dias — quebra em grade (várias linhas) pra
                   // caber num card estreito, sem precisar rolar. Período
                   // maior (ano) tem só ~12 baldes, então o card fica mais
-                  // largo e a faixa continua numa linha só, arrastável.
-                  width: isMonth ? 300 : 600,
+                  // largo e a faixa continua numa linha só, arrastável. No
+                  // mobile a largura fixa (300/600) estouraria a tela —
+                  // sem largura nenhuma aqui, `w-full` do className manda.
+                  width: isMobile ? undefined : isMonth ? 300 : 600,
                   background: "radial-gradient(circle at 20% 15%, rgba(255,60,75,0.12), transparent 60%), var(--panel)",
                 }}
               >
@@ -500,11 +504,11 @@ function OccurrenceListRow({
             : `Fixa · ${FREQUENCY_LABEL[row.recurring.frequency]}`}
         </div>
       </div>
-      <div className="flex-none text-[0.72rem] text-[var(--text-faint)]">{formatDateBR(row.date)}</div>
-      <div className="flex-none">
+      <div className="hidden flex-none text-[0.72rem] text-[var(--text-faint)] sm:block">{formatDateBR(row.date)}</div>
+      <div className="hidden flex-none sm:block">
         <StatusPill settled={settled} />
       </div>
-      <div className={"mono w-[110px] flex-none text-right text-[0.85rem] font-bold " + (isIn ? "text-[var(--text)]" : "text-[var(--danger)]")}>
+      <div className={"mono w-[76px] flex-none text-right text-[0.85rem] font-bold sm:w-[110px] " + (isIn ? "text-[var(--text)]" : "text-[var(--danger)]")}>
         {isIn ? "+" : "-"}
         {formatCentsToBRL(amountCents)}
       </div>

@@ -250,6 +250,9 @@ export const IconBank = (p: IconProps) =>
     p,
   );
 
+/** Hambúrguer — abre o menu lateral no mobile. */
+export const IconMenu = (p: IconProps) => base(<path d="M4 6h16M4 12h16M4 18h16" />, p);
+
 export const IconChevronLeft = (p: IconProps) => base(<path d="m15 18-6-6 6-6" />, p);
 export const IconChevronRight = (p: IconProps) => base(<path d="m9 18 6-6-6-6" />, p);
 

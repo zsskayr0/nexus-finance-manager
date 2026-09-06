@@ -51,7 +51,7 @@ export function TransactionsPage({
 
   return (
     <div>
-      <div className="mb-5 flex items-center justify-between gap-4">
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-4">
         <h2 className="page-title">Transações</h2>
         <div className="flex items-center gap-2.5">
           <div className="card flex items-center gap-2 rounded-[11px] px-3.5 py-2 text-[0.78rem]">

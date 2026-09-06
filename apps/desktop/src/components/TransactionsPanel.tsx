@@ -99,7 +99,7 @@ export function TransactionsPanel({
   return (
     <div>
       {selectable && selected.size > 0 && (
-        <div className="card mb-3 flex items-center justify-between rounded-[11px] px-4 py-2.5">
+        <div className="card mb-3 flex flex-wrap items-center justify-between gap-2 rounded-[11px] px-4 py-2.5">
           <span className="text-[0.8rem] font-semibold text-[var(--text-muted)]">
             {selected.size} selecionado{selected.size > 1 ? "s" : ""}
           </span>
@@ -326,9 +326,9 @@ function ListRow({
         <div className="truncate text-[0.83rem] font-bold">{tx.description}</div>
         <div className="truncate text-[0.7rem] text-[var(--text-faint)]">{payee?.name ?? "—"}</div>
       </div>
-      <div className="flex-1 text-[0.72rem] text-[var(--text-muted)]">{category?.name ?? "Sem categoria"}</div>
-      <div className="mono flex-none text-[0.72rem] text-[var(--text-faint)]">{formatDateBR(tx.occurredAt)}</div>
-      <div className={"mono w-[110px] flex-none text-right text-[0.85rem] font-bold " + (isIn ? "text-[var(--text)]" : "text-[var(--danger)]")}>
+      <div className="hidden flex-1 text-[0.72rem] text-[var(--text-muted)] sm:block">{category?.name ?? "Sem categoria"}</div>
+      <div className="mono hidden flex-none text-[0.72rem] text-[var(--text-faint)] sm:block">{formatDateBR(tx.occurredAt)}</div>
+      <div className={"mono w-[76px] flex-none text-right text-[0.85rem] font-bold sm:w-[110px] " + (isIn ? "text-[var(--text)]" : "text-[var(--danger)]")}>
         {isIn ? "+" : "-"}
         {formatCentsToBRL(tx.amountCents)}
       </div>
