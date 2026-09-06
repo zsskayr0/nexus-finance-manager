@@ -1,0 +1,16 @@
+{
+  "name": "nexus",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Nexus — ecossistema de gestão financeira (mobile + desktop)",
+  "packageManager": "pnpm@9.15.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build:core": "pnpm --filter @nexus/core build",
+    "test:core": "pnpm --filter @nexus/core test",
+    "dev:desktop": "pnpm --filter @nexus/desktop tauri dev",
+    "build:desktop": "pnpm --filter @nexus/desktop tauri build"
+  }
+}

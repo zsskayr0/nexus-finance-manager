@@ -1,0 +1,45 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build output
+dist/
+build/
+*.tsbuildinfo
+
+# Tauri (Cargo.lock IS committed on purpose — this is an application, not a library)
+apps/desktop/src-tauri/target/
+apps/desktop/src-tauri/gen/
+
+# React Native / Expo
+apps/mobile/.expo/
+apps/mobile/android/
+apps/mobile/ios/
+apps/mobile/.gradle/
+
+# Env
+.env
+.env.local
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+# SQLite local dev databases
+*.sqlite
+*.sqlite3
+*.db
+
+# Backups de CSV exportados pelo app (dados financeiros reais do usuário —
+# nunca devem ir pro controle de versão)
+nexus_backup_*.csv
