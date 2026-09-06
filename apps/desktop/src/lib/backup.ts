@@ -11,6 +11,7 @@ import {
   recordBackupResult,
   saveBackupDirectory,
 } from "./db";
+import { isTauri } from "./serverConfig";
 
 /**
  * Worker de backup do Desktop. O timing vem de um evento ("backup:heartbeat")
@@ -80,8 +81,16 @@ async function checkAndRunIfDue(): Promise<void> {
   if (due) await runBackupNow();
 }
 
-/** Chame uma vez, no boot do app (ver App.tsx). */
+/**
+ * Chame uma vez, no boot do app (ver App.tsx). Só faz sentido dentro do
+ * Tauri — o heartbeat vem de um evento nativo emitido pelo lado Rust, e
+ * `runBackupNow` grava arquivo via `invoke`, nenhum dos dois existe quando
+ * essa mesma build é servida pelo servidor e aberta num navegador comum
+ * (ver lib/serverConfig.ts). Fora do Tauri, é um no-op silencioso.
+ */
 export async function initBackupWorker(): Promise<() => void> {
+  if (!isTauri) return () => {};
+
   // cobre o caso do primeiro heartbeat do Rust já ter disparado antes deste listener existir
   void checkAndRunIfDue();
 

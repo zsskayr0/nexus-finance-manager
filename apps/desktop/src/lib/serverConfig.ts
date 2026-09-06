@@ -17,7 +17,14 @@ const API_KEY_KEY = "nexus:server-api-key";
  * servidor, então o padrão é "aqui mesmo" (`window.location.origin`), sem
  * precisar configurar nada — mesma pegada do Immich.
  */
-const isTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
+/**
+ * `true` dentro do Windows/Android empacotados (Tauri), `false` quando essa
+ * mesma build está sendo servida direto pelo servidor e aberta num
+ * navegador comum — usado tanto pro endereço padrão do servidor quanto
+ * pra decidir se é seguro chamar APIs que só existem dentro do Tauri
+ * (diálogo de arquivo, eventos nativos etc.), ver lib/backup.ts.
+ */
+export const isTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
 export const DEFAULT_SERVER_URL = isTauri ? "http://localhost:7023" : typeof window !== "undefined" ? window.location.origin : "http://localhost:7023";
 
