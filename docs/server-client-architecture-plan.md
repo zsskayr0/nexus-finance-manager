@@ -138,11 +138,13 @@ automatizar depois com GitHub Actions quando o formato estabilizar.
    e persistência de dado através de `docker restart` e de recriação do container.
 4. ✅ Script de migração testado com `--dry-run` (contra cópia via `VACUUM INTO` e contra o
    arquivo real, só leitura) antes do `--apply` de verdade contra o servidor rodando.
-5. 🔄 Target Android do Tauri inicializado (`tauri android init`, rodou sem erro); primeiro
-   build (`tauri android build --apk`) em andamento/validação — ver nota abaixo.
-6. Cortar as duas releases (`server-v0.1.0-alpha.1`, `client-v0.1.0-alpha.1`) — servidor não
-   depende da etapa 5; cliente Windows também não. O `.apk` entra na release de cliente quando
-   (se) o build Android terminar limpo.
+5. ✅ Target Android do Tauri inicializado e buildado com sucesso — `tauri android build --apk`
+   gerou um APK universal (arm64-v8a/armeabi-v7a/x86/x86_64), ~38MB, **não assinado** (sem
+   keystore configurado nesta fase — funciona via `adb install -r` ou em dispositivos com
+   verificação desabilitada; assinatura de verdade fica pra uma próxima versão). Não testado
+   ainda num dispositivo/emulador real.
+6. ✅ Releases cortadas: `server-v0.1.0-alpha.1` (imagem buildada via `docker compose up -d --build`)
+   e `client-v0.1.0-alpha.1` (`.msi` + `.exe` Windows, `.apk` Android universal não assinado).
 
 ## Riscos / pontos de atenção
 
