@@ -11,6 +11,8 @@
     "build:core": "pnpm --filter @nexus/core build",
     "test:core": "pnpm --filter @nexus/core test",
     "dev:desktop": "pnpm --filter @nexus/desktop tauri dev",
-    "build:desktop": "pnpm --filter @nexus/desktop tauri build"
+    "build:desktop": "pnpm --filter @nexus/desktop tauri build",
+    "dev:server": "pnpm --filter @nexus/server dev",
+    "build:server": "pnpm --filter @nexus/server build"
   }
 }

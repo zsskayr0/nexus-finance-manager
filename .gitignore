@@ -43,3 +43,7 @@ Thumbs.db
 # Backups de CSV exportados pelo app (dados financeiros reais do usuário —
 # nunca devem ir pro controle de versão)
 nexus_backup_*.csv
+
+# Dados persistentes do servidor (SQLite + anexos) em dev local — em Docker
+# isso vive no volume /data, nunca na imagem
+apps/server/data/
