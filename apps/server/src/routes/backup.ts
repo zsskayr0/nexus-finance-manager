@@ -1,5 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import { getBackupSettings, listBackupLog, saveBackupDirectory, setBackupEnabled } from "../db.js";
+import { getBackupSettings, listBackupLog, recordBackupResult, saveBackupDirectory, setBackupEnabled } from "../db.js";
 
 /**
  * Só a configuração/histórico de backup por enquanto — a rotina que
@@ -21,4 +21,11 @@ export async function backupRoutes(app: FastifyInstance) {
   });
 
   app.get<{ Querystring: { limit?: number } }>("/api/v1/backup-log", async (req) => listBackupLog(req.query.limit ? Number(req.query.limit) : undefined));
+
+  app.post<{
+    Body: { status: "success" | "failed"; filePath: string | null; rowsExported: number | null; errorMessage: string | null };
+  }>("/api/v1/backup-log", async (req, reply) => {
+    recordBackupResult(req.body);
+    reply.code(204).send();
+  });
 }

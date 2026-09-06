@@ -8,9 +8,11 @@ services:
     restart: unless-stopped
     ports:
       - "7023:7023"
-    environment:
-      # Troque por uma chave sua — sem isso o servidor sobe sem autenticação.
-      NEXUS_API_KEY: "troque-esta-chave"
+    # Sem chave de API por padrão (ok pra uso em localhost/rede confiável) —
+    # pra proteger antes de expor a porta pra fora da sua rede, descomente e
+    # defina uma chave sua, e configure a MESMA chave no app (Configurações).
+    # environment:
+    #   NEXUS_API_KEY: "sua-chave-aqui"
     volumes:
       - nexus-data:/data
 

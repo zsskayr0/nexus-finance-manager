@@ -1,69 +1,78 @@
 # Nexus — ecossistema de gestão financeira
 
-Monorepo pnpm com a lógica compartilhada entre o app Desktop (Tauri) e o
-futuro app Mobile (React Native).
+Monorepo pnpm: um servidor (dono único dos dados) e um cliente (mesmo código
+React, empacotado pra Windows e Android via Tauri).
 
 ```
 nexus/
 ├── packages/
-│   └── core/          → schema SQL, tipos Zod, CSV, recorrências, parsing de OCR
+│   └── core/     → schema SQL (documentação), tipos Zod, CSV, recorrências, parsing de OCR
 ├── apps/
-│   ├── desktop/        → Tauri + React + Tailwind (rodando)
-│   └── mobile/          → ainda não scaffolded (ver apps/mobile/README.md)
+│   ├── server/    → API REST (Fastify + node:sqlite), Docker, porta 7023 — dono dos dados
+│   └── desktop/   → cliente Tauri + React + Tailwind — Windows e Android (gen/android)
+└── docs/
+    └── server-client-architecture-plan.md → arquitetura completa
 ```
 
 ## Status atual
 
-- ✅ `@nexus/core` — schema, tipos, formatação, CSV, recorrências e parsing de
-  OCR heurístico. 20 testes (`vitest`), 100% passando.
-- ✅ `@nexus/desktop` — app Tauri completo:
-  - Painel com KPIs, gráfico de linha (saldo acumulado), rosca (gastos por
-    categoria) e barras (receitas x despesas), todos calculados a partir de
-    dados reais do SQLite (não mockados).
-  - Transações com alternador Lista/Tabela, ordenação por coluna e filtros
-    rápidos (Todas/Receitas/Despesas).
-  - Formulário de novo lançamento.
-  - Backup & CSV: escolha de pasta (diálogo nativo), exportação manual e um
-    worker em background (heartbeat do lado Rust a cada 5 min) que roda a
-    exportação automática a cada 12h enquanto o app está aberto.
-  - Recorrências / Categorias / Configurações: telas placeholder ("Em breve")
-    — a lógica de recorrência já existe em `@nexus/core`, falta só a UI.
-- ⏳ `apps/mobile` — não iniciado (precisa de Android SDK/Xcode neste
-  ambiente; ver `apps/mobile/README.md` para o plano).
+- ✅ `@nexus/core` — schema, tipos, formatação, CSV, recorrências e parsing de OCR heurístico.
+- ✅ `@nexus/server` — API REST completa (categorias, contas, pagadores, transações, recorrências,
+  pendências, anexos, backup, reset), SQLite via `node:sqlite` (sem dependência nativa pra
+  compilar), migrations aplicadas automaticamente no boot, Docker + `docker-compose.yml`.
+- ✅ `@nexus/desktop` — app completo: Painel, Transações, Recorrências, Fluxo de Trabalho
+  (calendário com arrastar-e-soltar), Contas, Categorias (CRUD + análise comparativa), Backup &
+  CSV, Configurações (endereço do servidor). Cliente HTTP fino — não guarda mais banco local,
+  fala com `@nexus/server` pela rede. Target Android inicializado (`apps/desktop/src-tauri/gen/android`).
+- ✅ Script de migração (`scripts/migrate-local-to-server.mjs`) — traz os dados de uma instalação
+  antiga (SQLite local do Tauri) pro servidor, com `--dry-run` obrigatório antes de gravar.
 
-## Rodando o Desktop
+## Rodando
 
-Pré-requisitos: Node 20+, pnpm, Rust (via [rustup](https://rustup.rs)) — nesta
-máquina já foram instalados nesta sessão.
+### 1. Suba o servidor (Docker)
+
+```bash
+docker compose up -d --build
+```
+
+Sobe em `http://localhost:7023`. Sem chave de API por padrão (ok em localhost/rede confiável) —
+ver `apps/server/README.md` pra proteger com uma chave antes de expor a porta pra fora da rede.
+
+### 2. Rode o cliente Desktop
 
 ```bash
 pnpm install
-pnpm build:core       # compila @nexus/core (necessário antes do primeiro dev:desktop)
-pnpm dev:desktop       # abre a janela do Nexus com hot-reload
+pnpm build:core        # compila @nexus/core (dependência do desktop e do server)
+pnpm dev:desktop        # abre a janela do Nexus com hot-reload
 ```
 
-`pnpm dev:desktop` abre uma janela nativa de verdade — rode você mesmo pelo
-terminal para ver a interface (esta sessão só validou com `cargo check` e
-`vite build`, sem abrir a janela).
+Por padrão o cliente aponta pra `http://localhost:7023` — ajustável em Configurações, dentro do
+app, se o servidor rodar em outra máquina da rede.
 
-Para gerar o instalador:
+### 3. (Opcional) Migre dados de uma instalação antiga
+
+Se você já usava uma versão anterior do Nexus (SQLite local, sem servidor):
 
 ```bash
-pnpm build:desktop
+node scripts/migrate-local-to-server.mjs --dry-run   # só mostra o que seria migrado
+node scripts/migrate-local-to-server.mjs --apply     # grava de verdade no servidor
+```
+
+### Gerando instaladores
+
+```bash
+pnpm build:desktop                                    # Windows (.msi/.exe)
+cd apps/desktop && pnpm tauri android build --apk     # Android (.apk)
 ```
 
 ## Banco de dados
 
-SQLite local (`nexus.db`, na pasta de dados do app). O schema é aplicado
-automaticamente via migration no boot (`packages/core/src/schema.sql` →
-embutido no binário Rust). Categorias padrão são semeadas na primeira
-execução; transações começam vazias — use "Novo lançamento" ou "Carregar
-dados de exemplo" no estado vazio do painel.
+Mora só no servidor (`apps/server`, volume Docker `/data/nexus.db`) — os clientes não guardam
+mais nada localmente. Schema documentado em `packages/core/src/schema.sql`; migrations de verdade
+(aplicadas de fato) em `apps/server/migrations/`, uma por versão, nunca editadas depois de
+aplicadas — sempre um arquivo novo pra qualquer mudança de schema.
 
-## Próximos passos sugeridos
+## Arquitetura
 
-1. Rodar `pnpm dev:desktop` e revisar a interface de verdade.
-2. Telas de Recorrências e Categorias (CRUD completo).
-3. Scaffold do Mobile (`apps/mobile`) quando Android Studio estiver disponível.
-4. Endurecer o backup: registrar tarefa no agendador do SO para rodar mesmo
-   com o app fechado.
+Ver [`docs/server-client-architecture-plan.md`](docs/server-client-architecture-plan.md) pro
+plano completo (decisões, API, Docker, migração, releases).

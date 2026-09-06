@@ -7,10 +7,12 @@ import { WorkflowPage } from "./pages/Workflow";
 import { AccountsPage } from "./pages/Accounts";
 import { CategoriesPage } from "./pages/Categories";
 import { BackupSettingsPage } from "./pages/BackupSettings";
+import { SettingsPage } from "./pages/Settings";
 import { ComingSoon } from "./pages/ComingSoon";
 import { TransactionModal } from "./components/TransactionModal";
 import { useNexusData } from "./lib/hooks";
-import { ensureDefaultAccount, ensureDefaultCategories, ensureVividDefaultCategoryColors } from "./lib/seed";
+import { listCategories } from "./lib/db";
+import { getServerUrl } from "./lib/serverConfig";
 import { initBackupWorker } from "./lib/backup";
 import { defaultPeriod, type Period } from "./lib/period";
 import type { PanelTarget } from "./lib/panelTarget";
@@ -36,18 +38,27 @@ export default function App() {
   const [recurringPanelPinned, setRecurringPanelPinned] = useState(false);
   const data = useNexusData();
 
+  // O app não guarda mais banco local — tudo depende do servidor (Docker,
+  // porta 7023 por padrão) estar no ar. Uma chamada simples aqui no boot
+  // (as categorias já vêm seedadas por padrão no servidor) serve de "ping":
+  // se falhar, mostra o motivo em vez de ficar preso em "Carregando…" sem
+  // nenhuma pista de que o servidor é que não está rodando.
   useEffect(() => {
     let unlisten: (() => void) | undefined;
     (async () => {
       try {
-        await ensureDefaultCategories();
-        await ensureVividDefaultCategoryColors();
-        await ensureDefaultAccount();
+        await listCategories();
         setReady(true);
+        // Garante que os dados sejam (re)carregados junto deste ping — se
+        // uma tentativa anterior do useNexusData já tinha falhado (ex.:
+        // servidor ainda subindo), essa falha não tem retry automático
+        // próprio, então força um aqui.
+        data.refresh();
         unlisten = await initBackupWorker();
       } catch (err) {
         console.error("Falha ao iniciar o Nexus:", err);
-        setBootError(err instanceof Error ? err.message : String(err));
+        const detail = err instanceof Error ? err.message : String(err);
+        setBootError(`Não consegui falar com o servidor Nexus em ${getServerUrl()}. Confira se ele está rodando (docker compose up -d). Detalhe: ${detail}`);
       }
     })();
     return () => unlisten?.();
@@ -62,10 +73,23 @@ export default function App() {
 
       <main className="flex flex-1 overflow-hidden">
         <div className="min-w-0 flex-1 overflow-y-auto p-7">
-          {bootError ? (
+          {page === "settings" ? (
+            // Sempre acessível, mesmo com bootError — é a válvula de escape
+            // pra corrigir o endereço/chave do servidor sem precisar editar
+            // nada fora do app.
+            <SettingsPage />
+          ) : bootError ? (
             <div className="mx-auto mt-20 max-w-md rounded-2xl border border-[var(--danger)] bg-[rgba(228,99,107,0.08)] px-6 py-5 text-center">
               <p className="mb-1.5 text-[0.9rem] font-bold text-[var(--danger)]">Não consegui iniciar o Nexus</p>
-              <p className="mono text-[0.72rem] text-[var(--text-faint)]">{bootError}</p>
+              <p className="mono mb-4 text-[0.72rem] text-[var(--text-faint)]">{bootError}</p>
+              <div className="flex justify-center gap-2">
+                <button onClick={() => window.location.reload()} className="card rounded-[10px] px-3.5 py-2 text-[0.78rem] font-semibold text-[var(--text-muted)] hover:text-[var(--text)]">
+                  Tentar de novo
+                </button>
+                <button onClick={() => setPage("settings")} className="solid rounded-[10px] px-3.5 py-2 text-[0.78rem] font-bold">
+                  Configurar servidor
+                </button>
+              </div>
             </div>
           ) : !ready ? (
             <div className="py-20 text-center text-[0.82rem] text-[var(--text-faint)]">Carregando…</div>
@@ -102,7 +126,7 @@ export default function App() {
           ) : page === "help" ? (
             <ComingSoon title="Ajuda & Suporte" description="Central de ajuda e canais de suporte — próxima etapa do desenvolvimento." />
           ) : (
-            <ComingSoon title="Configurações" description="Preferências gerais do Nexus — próxima etapa do desenvolvimento." />
+            <SettingsPage />
           )}
         </div>
 

@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import type { BackupSettings } from "@nexus/core";
 import { getBackupSettings, listBackupLog, resetAllData, setBackupEnabled, type BackupLogEntryRow } from "../lib/db";
-import { ensureDefaultAccount, ensureDefaultCategories } from "../lib/seed";
 import { pickBackupDirectory, runBackupNow } from "../lib/backup";
 import { downloadImportTemplate, importTransactionsFromCsv, type ImportSummary } from "../lib/csvImport";
 import { ConfirmDialog } from "../components/ConfirmDialog";
@@ -73,8 +72,6 @@ export function BackupSettingsPage({ onDataChanged }: { onDataChanged: () => voi
     setResetting(true);
     try {
       await resetAllData();
-      await ensureDefaultCategories();
-      await ensureDefaultAccount();
       onDataChanged();
       setConfirmReset(false);
     } finally {

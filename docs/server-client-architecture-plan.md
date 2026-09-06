@@ -1,6 +1,8 @@
 # Nexus — plano de arquitetura cliente-servidor
 
-Status: proposta, aguardando aprovação. Nada neste documento foi implementado ainda.
+Status: **implementado** (etapas 1-4 e 6 da ordem de execução abaixo; etapa 5 — Android —
+inicializada, build em andamento/validação). Este documento descreve tanto a decisão original
+quanto os ajustes feitos durante a implementação (marcados abaixo).
 
 ## Objetivo
 
@@ -22,7 +24,7 @@ Decisões já confirmadas com o usuário:
 ┌─────────────────────┐        HTTP (porta 7023)        ┌──────────────────────────┐
 │  Cliente Windows     │ ───────────────────────────────▶│  Servidor (Docker)       │
 │  (Tauri desktop)     │◀─────────────────────────────── │  Node + Fastify          │
-└─────────────────────┘                                  │  SQLite (better-sqlite3) │
+└─────────────────────┘                                  │  SQLite (node:sqlite)    │
 ┌─────────────────────┐                                  │  volume /data            │
 │  Cliente Android     │ ───────────────────────────────▶│                          │
 │  (Tauri mobile)      │◀─────────────────────────────── │                          │
@@ -40,57 +42,77 @@ descontinuado em favor de `apps/desktop` + target Android do Tauri.
 
 - **Stack**: Node.js + Fastify + TypeScript, reaproveitando `@nexus/core` direto (mesmos
   schemas Zod, `recurrence.ts`, `csv.ts` etc. — zero duplicação de lógica de negócio).
-- **Banco**: SQLite via `better-sqlite3`, não Postgres — app de usuário único, sem motivo pra
-  motor mais pesado; simplifica o Docker (um container só, sem serviço de banco separado).
-- **Migrations**: as mesmas migrations `.sql` já existentes em
-  `apps/desktop/src-tauri/migrations/` são reaproveitadas (movidas ou copiadas pro servidor),
-  aplicadas por um runner simples no boot do servidor. A regra de "migration nunca muda depois
-  de aplicada" continua valendo.
-- **Lógica que hoje mora em `apps/desktop/src/lib/{db,recurring,aggregate}.ts`** (ex.:
-  `settleOccurrence`, `deleteOccurrenceOnly`, os agregadores do Painel) migra pro servidor —
-  ela sempre leu/escreveu no banco, então pertence a quem é dono do banco agora. O cliente passa
-  a chamar endpoints (`POST /recurring-transactions/:id/settle`) em vez de rodar essas funções
-  localmente.
+- **Banco**: SQLite via **`node:sqlite`** (módulo embutido do próprio Node — não Postgres, e não
+  `better-sqlite3` como cogitado originalmente). Mudança feita na hora de implementar:
+  `better-sqlite3` falhou pra instalar no Windows local por falta de Visual Studio Build Tools
+  (compilação nativa via node-gyp) — problema que também apareceria pra qualquer outra máquina
+  sem esse toolchain. `node:sqlite` não compila nada (só emite um aviso de "experimental" no
+  log, inofensivo), funciona igual local e no Docker.
+- **Migrations**: as mesmas migrations `.sql` de `apps/desktop/src-tauri/migrations/` foram
+  copiadas pro servidor (`apps/server/migrations/`) e **a cópia do lado do Desktop foi removida**
+  — o cliente não abre banco nenhum mais, então não faz sentido ele carregar migrations. Aplicadas
+  por um runner simples no boot do servidor (tabela `_migrations` própria, nada a ver com o
+  mecanismo do `tauri-plugin-sql`, que também foi removido do Desktop).
+- **Lógica que ficou no cliente, ao contrário do que este documento cogitava originalmente**:
+  `recurring.ts`/`aggregate.ts` (settleOccurrence, deleteOccurrenceOnly, os agregadores do
+  Painel) **continuam no `apps/desktop`**, inalterados — são só sequências de chamadas à mesma
+  API REST (que já cobre create/update/delete de cada entidade), então não precisavam de
+  endpoints compostos no servidor. Simplifica a migração do cliente: só `lib/db.ts` mudou de
+  implementação, o resto do app nem percebeu.
 - **API**: REST versionada (`/api/v1/...`), um recurso por entidade — `transactions`,
-  `categories`, `accounts`, `payees`, `recurring-transactions`, `pending-items`, `attachments`,
-  `backup-settings` — espelhando 1:1 as funções que já existem em `lib/db.ts` hoje. Sem GraphQL,
-  sem over-engineering — é uma API pequena pra um app pessoal.
-- **Autenticação**: uma API key simples (variável de ambiente, enviada num header) — o
-  suficiente pra não deixar a API totalmente aberta pra quem tiver acesso à rede local, sem a
-  complexidade de um sistema de login completo (não parece necessário pra um app de usuário
-  único). Pode evoluir depois se um dia tiver multiusuário.
+  `categories`, `accounts`, `payees`, `recurring-transactions`, `recurring-exclusions`,
+  `pending-items`, `attachments`, `backup-settings`, `backup-log` — espelhando 1:1 as funções que
+  existiam em `lib/db.ts`. Mais um caminho separado, `/api/v1/import`, só pra migração em lote
+  (preserva ids/timestamps originais, ao contrário do CRUD normal). Sem GraphQL, sem
+  over-engineering.
+- **Autenticação**: API key simples (header `x-api-key`, variável `NEXUS_API_KEY`) — **desligada
+  por padrão** no `docker-compose.yml` (decisão tomada na implementação: forçar uma chave por
+  padrão criava fricção real pro primeiro uso — cliente e servidor precisam concordar na mesma
+  chave, e sem uma tela de configuração isso travava o app inteiro). Fica fácil de ligar depois
+  (descomentar a variável no compose + preencher em Configurações no app) antes de expor a porta
+  fora de uma rede confiável.
 - **Anexos**: guardados num diretório dentro do mesmo volume Docker (`/data/attachments`), não
   mais via `@tauri-apps/plugin-fs` local.
-- **Docker**: um `Dockerfile` (build multi-stage: compila TS, roda com `node`), expondo `7023`,
-  com um volume nomeado (`/data`) pro arquivo SQLite + anexos persistirem entre reinícios do
-  container. Um `docker-compose.yml` de conveniência na raiz do repo (`docker compose up -d`).
+- **Docker**: `Dockerfile` multi-stage (builda o monorepo inteiro, usa `pnpm deploy` pra extrair
+  só o `@nexus/server` resolvido), expondo `7023`, com um volume nomeado (`/data`) pro `nexus.db`
+  + anexos persistirem entre reinícios/recriações do container — **testado de verdade**: dado
+  gravado sobrevive a `docker restart` e a `docker compose up -d --build` (recria o container).
+  `docker-compose.yml` de conveniência na raiz do repo.
 
-## 2. Cliente (`apps/desktop`, adaptado)
+## 2. Cliente (`apps/desktop`, adaptado) ✅
 
-- Remove `@tauri-apps/plugin-sql` e as migrations locais — o cliente não guarda mais dado
-  nenhum, só fala com o servidor.
-- `lib/db.ts` vira um cliente HTTP (`fetch` contra `http://<host>:7023/api/v1/...`) com a MESMA
-  assinatura de funções que já existe hoje (`listTransactions`, `insertTransaction` etc.) — o
-  resto do app (páginas, componentes) não muda quase nada, porque já é tudo desacoplado atrás
-  dessas funções.
-- Nova tela/campo de configuração: endereço do servidor (padrão `localhost:7023`, mas
-  configurável — o servidor pode estar rodando em outra máquina da rede).
-- **Android**: adicionar o target mobile do Tauri 2 (`tauri android init` + build) em cima do
-  mesmo `apps/desktop` — não é um app novo, é uma segunda plataforma de build do mesmo código.
+- Removidos `@tauri-apps/plugin-sql`, a dependência no `Cargo.toml`, as permissões `sql:*` das
+  capabilities, e a cópia local de `migrations/` — o cliente não guarda mais dado nenhum.
+- `lib/db.ts` virou um cliente HTTP (`fetch` contra `<servidor>/api/v1/...`) com a MESMA
+  assinatura de funções que existia (`listTransactions`, `insertTransaction` etc.) — o resto do
+  app (páginas, componentes) não mudou, porque já era tudo desacoplado atrás dessas funções.
+  `seed.ts` foi removido (seed de categorias/conta padrão agora é responsabilidade do servidor).
+- Nova página **Configurações** (`pages/Settings.tsx`) — endereço do servidor + chave de API
+  opcional, guardados em `localStorage` (`lib/serverConfig.ts`), com teste de conexão. Acessível
+  mesmo quando o boot falha (é a válvula de escape pra corrigir o endereço sem editar nada fora
+  do app).
+- **Android**: `tauri android init` rodado em cima do `apps/desktop` já adaptado — mesmo código,
+  gerado em `apps/desktop/src-tauri/gen/android` (gitignored). Precisou instalar targets Rust
+  (`aarch64-linux-android` e companhia via `rustup target add`) e `cargo-ndk`; usou o Android
+  SDK/NDK/JDK já presentes na máquina.
 
-## 3. Migração dos dados reais existentes
+## 3. Migração dos dados reais existentes ✅
 
-Um script Node autônomo (`scripts/migrate-local-to-server.ts`), rodado uma vez:
+Script Node autônomo, `scripts/migrate-local-to-server.mjs` (`.mjs`, não `.ts` — roda direto sem
+build):
 
-1. Abre o `nexus.db` atual (`%APPDATA%\com.nexus.desktop\nexus.db`) direto via `better-sqlite3`
-   (sem precisar do Tauri rodando).
-2. Lê todas as tabelas, na ordem de dependência (categorias/contas/pagadores primeiro,
-   depois transações/recorrências/pendências, preservando os IDs originais pra manter os
-   vínculos entre tabelas).
-3. Envia tudo pro servidor via um endpoint de importação em lote (`POST /api/v1/import`) —
-   um caminho separado das rotas normais de CRUD, feito só pra essa migração única.
-4. Roda com `--dry-run` primeiro (mostra o que seria migrado, sem gravar nada) antes do
-   `--apply` de verdade — dado financeiro real merece essa checagem.
+1. Abre o `nexus.db` atual (`%APPDATA%\com.nexus.desktop\nexus.db` por padrão, ou `--source`) via
+   `node:sqlite`, só leitura (`readOnly: true`) — nunca escreve no arquivo de origem.
+2. Lê todas as tabelas, mapeia snake_case → camelCase, preservando ids e timestamps originais.
+3. `--dry-run` (padrão, sem precisar passar nada) só mostra as contagens por tabela; `--apply`
+   envia tudo pro servidor via `POST /api/v1/import` (idempotente — `INSERT OR REPLACE`, seguro
+   de rodar de novo).
+
+**Executado de verdade nesta implementação** — antes de tocar no banco real, foi tirada uma cópia
+consistente via `VACUUM INTO` (segura mesmo com o app aberto e o WAL ativo) pra inspecionar sem
+risco; o dry-run rodou contra essa cópia E contra o arquivo real (ainda só leitura) antes do
+`--apply`. Resultado migrado e conferido: 9 categorias, 11 pagadores, 3 contas, 12 recorrências,
+12 transações (R$ 3.282,58 em soma — bateu exatamente com a soma do arquivo de origem).
 
 ## 4. Escopo das releases
 
@@ -104,24 +126,37 @@ Dois artefatos, duas tags, dois `gh release create` separados:
 Nesta fase alpha, os builds continuam manuais (como fizemos com a `v0.1.0-alpha.1`); dá pra
 automatizar depois com GitHub Actions quando o formato estabilizar.
 
-## Ordem de execução sugerida
+## Ordem de execução
 
-1. Criar `apps/server` com o esqueleto Fastify + SQLite + as migrations copiadas, rodando local
-   (sem Docker ainda) — validar a API contra o schema atual.
-2. Adaptar `apps/desktop/src/lib/db.ts` pra falar com essa API (mantendo as mesmas assinaturas),
-   confirmar que o app inteiro continua funcionando ponta a ponta contra o servidor local.
-3. Escrever o `Dockerfile` + `docker-compose.yml`, validar que o servidor sobe limpo em
-   container com um volume persistente.
-4. Escrever e testar o script de migração (`--dry-run` primeiro) contra uma CÓPIA do banco
-   real — nunca contra o arquivo original.
-5. Adicionar o target Android do Tauri em cima do `apps/desktop` já adaptado.
-6. Cortar as duas releases (`server-v0.1.0-alpha.1`, `client-v0.1.0-alpha.1`).
+1. ✅ Criar `apps/server` com o esqueleto Fastify + SQLite + as migrations copiadas, rodando
+   local — validado com curl (CRUD completo) e depois em container Docker isolado.
+2. ✅ Adaptar `apps/desktop/src/lib/db.ts` pra falar com essa API (mantendo as mesmas
+   assinaturas) — confirmado ponta a ponta: o app real, com os dados reais migrados, roda
+   contra o servidor em Docker (visto nos logs do servidor recebendo e respondendo 200 pra
+   categorias/contas/transações/recorrências/pendências/exclusões).
+3. ✅ `Dockerfile` + `docker-compose.yml` — validado com `docker compose up -d --build`/`down`,
+   e persistência de dado através de `docker restart` e de recriação do container.
+4. ✅ Script de migração testado com `--dry-run` (contra cópia via `VACUUM INTO` e contra o
+   arquivo real, só leitura) antes do `--apply` de verdade contra o servidor rodando.
+5. 🔄 Target Android do Tauri inicializado (`tauri android init`, rodou sem erro); primeiro
+   build (`tauri android build --apk`) em andamento/validação — ver nota abaixo.
+6. Cortar as duas releases (`server-v0.1.0-alpha.1`, `client-v0.1.0-alpha.1`) — servidor não
+   depende da etapa 5; cliente Windows também não. O `.apk` entra na release de cliente quando
+   (se) o build Android terminar limpo.
 
 ## Riscos / pontos de atenção
 
 - O desktop deixa de funcionar sem rede/servidor no ar — é a troca explícita que foi aceita,
-  mas vale ter isso claro (hoje funciona 100% offline, depois da mudança não funciona mais).
-- Suporte mobile do Tauri 2 ainda é mais novo que o desktop — pode aparecer alguma limitação de
-  plugin/WebView no Android que não existe hoje; a etapa 5 é onde isso apareceria.
-- A migração de dados reais (etapa 4) é o passo mais sensível do plano — por isso o
-  `--dry-run` obrigatório antes de qualquer escrita no servidor.
+  mas vale ter isso claro (hoje funciona 100% offline, depois da mudança não funciona mais). A
+  página Configurações fica acessível mesmo com o boot falhando, especificamente pra mitigar
+  isso (trocar o endereço do servidor sem ficar travado numa tela de erro).
+- Suporte mobile do Tauri 2 ainda é mais novo que o desktop — o SDK/NDK/JDK já estavam presentes
+  nesta máquina (de outro projeto), o que ajudou a validar `tauri android init` rapidamente; o
+  primeiro `build --apk` é tipicamente lento (Gradle baixando dependências pela primeira vez) —
+  sem confirmação ainda de que terminou com sucesso no momento em que este documento foi escrito.
+- A migração de dados reais foi o passo mais sensível do plano — mitigado com uma cópia via
+  `VACUUM INTO` antes de qualquer leitura de verdade, e `--dry-run` conferido antes do `--apply`.
+  Os números batem exatamente com a origem (ver seção 3).
+- Decisão tomada durante a implementação, não prevista originalmente: autenticação por API key
+  fica **desligada por padrão** (ver seção 1) — trade-off deliberado entre segurança e fricção de
+  primeiro uso, documentado em `apps/server/README.md` e no próprio `docker-compose.yml`.

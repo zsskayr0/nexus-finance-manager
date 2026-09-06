@@ -53,6 +53,14 @@ export function useNexusData(): NexusData {
       setPendingItems(pending);
       setRecurringExclusions(exclusions);
       setLoading(false);
+    }).catch((err) => {
+      // Sem isso, uma falha aqui (ex.: servidor fora do ar) vira uma
+      // promise rejeitada sem handler — `loading` fica travado em `true`
+      // pra sempre, sem chance de tentar de novo (nem quando o servidor
+      // volta, já que nada mais muda `tick`).
+      if (cancelled) return;
+      console.error("Falha ao carregar dados do Nexus:", err);
+      setLoading(false);
     });
     return () => {
       cancelled = true;
