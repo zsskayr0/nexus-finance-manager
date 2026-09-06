@@ -47,3 +47,11 @@ nexus_backup_*.csv
 # Dados persistentes do servidor (SQLite + anexos) em dev local — em Docker
 # isso vive no volume /data, nunca na imagem
 apps/server/data/
+
+# Chaves de assinatura Android — nunca versionadas (o keystore de release
+# vive fora do repo; ver apps/desktop/src-tauri/gen/android/keystore.properties,
+# que já está dentro de gen/ e por isso ignorado, mas essa regra fica de
+# reforço caso esse arquivo algum dia saia de lá)
+*.keystore
+*.jks
+keystore.properties
